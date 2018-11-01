@@ -48,6 +48,13 @@
 #include <plat/common-smdk.h>
 
 #include "common.h"
+#include <asm/io.h>
+
+//#include <sound/s3c24xx_wm8976.h>
+#include <linux/dm9000.h>
+
+#define SMDK_SMDK2440_DM9K_BASE (S3C2410_CS4 + 0x300)
+#define CONFIG_FB_JZ2440_4_3 
 
 static struct map_desc smdk2440_iodesc[] __initdata = {
 	/* ISA IO Space map (memory space selected by A24) */
@@ -106,33 +113,92 @@ static struct s3c2410_uartcfg smdk2440_uartcfgs[] __initdata = {
 
 /* LCD driver info */
 
-static struct s3c2410fb_display smdk2440_lcd_cfg __initdata = {
+static struct s3c2410fb_display smdk2440_lcd_cfg_480_272 __initdata = {
 
 	.lcdcon5	= S3C2410_LCDCON5_FRM565 |
 			  S3C2410_LCDCON5_INVVLINE |
 			  S3C2410_LCDCON5_INVVFRAME |
 			  S3C2410_LCDCON5_PWREN |
 			  S3C2410_LCDCON5_HWSWP,
+			  
 
-	.type		= S3C2410_LCDCON1_TFT,
+    .type     = (S3C2410_LCDCON1_TFT16BPP |\
+                       S3C2410_LCDCON1_TFT),
+
+
+	.width		= 480,
+	.height		= 272,
+
+	.pixclock	= 111111, /* HCLK 100 MHz, divisor 9 */
+	.xres		= 480,
+	.yres		= 272,
+	.bpp		= 16,
+	/*left_margin: HFPD, 发出最后一行里最后一个象素数据之后，再过多长时间才发出HSYNC*/
+	.left_margin	= 2,
+	
+	/*right_margin: HBPD, VSYNC之后再过多长时间才能发出第1行数据*/
+	.right_margin	= 2,
+	
+	/* hsync_len:HSPW, HSYNC信号的脉冲宽度,*/	
+	.hsync_len	= 41,
+
+	/*upper_margin: VBPD, VSYNC之后再过多长时间才能发出第1行数据*/
+	.upper_margin	= 2,
+
+	/*lower_margin: VFPD, 发出最后一行数据之后，再过多长时间才发出VSYNC*/
+	.lower_margin	= 2,
+
+	/*vsync_len: VSPW, VSYNC信号的脉冲宽度,*/
+	.vsync_len	= 10,
+
+};
+
+static struct s3c2410fb_display smdk2440_lcd_cfg_320_240 __initdata = {
+
+	.lcdcon5	= S3C2410_LCDCON5_FRM565 |
+			  S3C2410_LCDCON5_INVVLINE |
+			  S3C2410_LCDCON5_INVVFRAME |
+			  S3C2410_LCDCON5_PWREN |
+			  S3C2410_LCDCON5_HWSWP,
+			  
+
+    .type     = (S3C2410_LCDCON1_TFT16BPP |\
+                       S3C2410_LCDCON1_TFT),
 
 	.width		= 240,
 	.height		= 320,
 
-	.pixclock	= 166667, /* HCLK 60 MHz, divisor 10 */
+
+	/*DCF是Dot Clk Frequency，单位是MHz，是扫描像素点的频率。计算出来的pixclock单位是ps。*/
+	.pixclock	= 111111, /* HCLK 100 MHz, divisor 9 */
 	.xres		= 240,
 	.yres		= 320,
 	.bpp		= 16,
-	.left_margin	= 20,
-	.right_margin	= 8,
-	.hsync_len	= 4,
-	.upper_margin	= 8,
-	.lower_margin	= 7,
-	.vsync_len	= 4,
+	/*left_margin: HFPD, 发出最后一行里最后一个象素数据之后，再过多长时间才发出HSYNC*/
+	.left_margin	= 2,
+	
+	/*right_margin: HBPD, VSYNC之后再过多长时间才能发出第1行数据*/
+	.right_margin	= 2,
+	
+	/* hsync_len:HSPW, HSYNC信号的脉冲宽度,*/	
+	.hsync_len	= 41,
+
+	/*upper_margin: VBPD, VSYNC之后再过多长时间才能发出第1行数据*/
+	.upper_margin	= 2,
+
+	/*lower_margin: VFPD, 发出最后一行数据之后，再过多长时间才发出VSYNC*/
+	.lower_margin	= 2,
+
+	/*vsync_len: VSPW, VSYNC信号的脉冲宽度,*/
+	.vsync_len	= 10,
+
+
+
+
 };
 
-static struct s3c2410fb_mach_info smdk2440_fb_info __initdata = {
-	.displays	= &smdk2440_lcd_cfg,
+static struct s3c2410fb_mach_info smdk2440_fb_info_480_272 __initdata = {
+	.displays	= &smdk2440_lcd_cfg_480_272,
 	.num_displays	= 1,
 	.default_display = 0,
 
@@ -148,7 +214,88 @@ static struct s3c2410fb_mach_info smdk2440_fb_info __initdata = {
 	.gpdup_mask	= 0xffffffff,
 #endif
 
-	.lpcsel		= ((0xCE6) & ~7) | 1<<4,
+        //.lpcsel                = ((0xCE6) & ~7) | 1<<4,
+        .lpcsel = 0xf82,
+};
+
+static struct s3c2410fb_mach_info smdk2440_fb_info_320_240 __initdata = {
+	.displays	= &smdk2440_lcd_cfg_320_240,
+	.num_displays	= 1,
+	.default_display = 0,
+
+#if 0
+	/* currently setup by downloader */
+	.gpccon		= 0xaa940659,
+	.gpccon_mask	= 0xffffffff,
+	.gpcup		= 0x0000ffff,
+	.gpcup_mask	= 0xffffffff,
+	.gpdcon		= 0xaa84aaa0,
+	.gpdcon_mask	= 0xffffffff,
+	.gpdup		= 0x0000faff,
+	.gpdup_mask	= 0xffffffff,
+#endif
+
+        //.lpcsel                = ((0xCE6) & ~7) | 1<<4,
+        .lpcsel = 0xf82,
+};
+
+#if 0
+/* AUDIO */
+
+static struct s3c24xx_wm8976_platform_data smdk2440_audio_pins = {
+	.l3_clk  = S3C2410_GPB(4),
+	.l3_mode = S3C2410_GPB(2),
+	.l3_data = S3C2410_GPB(3),
+};
+
+static struct platform_device smdk2440_audio = {
+	.name		= "s3c24xx_wm8976",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &smdk2440_audio_pins,
+	},
+};
+#endif
+
+/* DM9000AEP 10/100 ethernet controller */
+
+#define SMDK_SMDK2440_DM9K_BASE (S3C2410_CS4 + 0x300)
+
+static struct resource smkd2440_dm9k_resource[] = {
+	[0] = {
+		.start = SMDK_SMDK2440_DM9K_BASE,
+		.end   = SMDK_SMDK2440_DM9K_BASE + 3,
+		.flags = IORESOURCE_MEM
+	},
+	[1] = {
+		.start = SMDK_SMDK2440_DM9K_BASE + 4,
+		.end   = SMDK_SMDK2440_DM9K_BASE + 7,
+		.flags = IORESOURCE_MEM
+	},
+	[2] = {
+		.start = IRQ_EINT7,
+		.end   = IRQ_EINT7,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	}
+};
+
+
+/*
+ * The DM9000 has no eeprom, and it's MAC address is set by
+ * the bootloader before starting the kernel.
+ */
+static struct dm9000_plat_data smdk2440_dm9k_pdata = {
+	.flags		= (DM9000_PLATF_16BITONLY | DM9000_PLATF_NO_EEPROM),
+};
+
+static struct platform_device smdk2440_device_eth = {
+	.name		= "dm9000",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(smkd2440_dm9k_resource),
+	.resource	= smkd2440_dm9k_resource,
+	.dev		= {
+		.platform_data	= &smdk2440_dm9k_pdata,
+	},
 };
 
 static struct platform_device *smdk2440_devices[] __initdata = {
@@ -157,6 +304,9 @@ static struct platform_device *smdk2440_devices[] __initdata = {
 	&s3c_device_wdt,
 	&s3c_device_i2c0,
 	&s3c_device_iis,
+//	&smdk2440_audio,
+	&samsung_asoc_dma,
+	&smdk2440_device_eth,
 };
 
 static void __init smdk2440_map_io(void)
@@ -168,11 +318,33 @@ static void __init smdk2440_map_io(void)
 
 static void __init smdk2440_machine_init(void)
 {
-	s3c24xx_fb_set_platdata(&smdk2440_fb_info);
+	
+#if defined(CONFIG_FB_JZ2440_3_5)
+
+	s3c24xx_fb_set_platdata(&smdk2440_fb_info_320_240);
+	printk("Ready Init S3C2440 3.5LCD\n");
+	
+#endif
+
+#if defined(CONFIG_FB_JZ2440_4_3)
+
+	s3c24xx_fb_set_platdata(&smdk2440_fb_info_480_272);
+	printk("Ready Init S3C2440 4.3LCD\n");
+
+	
+#endif
+	printk("Init S3C2440 LCD...\n");
 	s3c_i2c0_set_platdata(NULL);
+	
 
 	platform_add_devices(smdk2440_devices, ARRAY_SIZE(smdk2440_devices));
 	smdk_machine_init();
+
+	/*支持启动背光灯和LCD_PWREN*/
+	writel((readl(S3C2410_GPBCON) & ~(3)) | 1, S3C2410_GPBCON);
+	writel((readl(S3C2410_GPBDAT) | 1), S3C2410_GPBDAT);
+	writel((readl(S3C2410_GPGCON) | (3<<8)), S3C2410_GPGCON);
+	
 }
 
 MACHINE_START(S3C2440, "SMDK2440")
